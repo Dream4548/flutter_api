@@ -2,172 +2,111 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-void main() => runApp(MyApp());
+void main() => runApp(NewsApp());
 
-class MyApp extends StatelessWidget {
+class NewsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lamborghini Showcase',
+      title: 'News App',
       theme: ThemeData(
-        primarySwatch: Colors.red,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.grey[200],
       ),
-      home: MyHomePage(title: 'Lamborghini Models'),
+      home: NewsHomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
-
+class NewsHomePage extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _NewsHomePageState createState() => _NewsHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  Future<List<dynamic>> fetchData() async {
-    // ใช้ข้อมูลจำลอง
-    final response = await Future.delayed(Duration(seconds: 2), () {
-      return jsonEncode([
-        {
-          "model": "Aventador",
-          "description":
-              "The Lamborghini Aventador is a mid-engine sports car produced by the Italian automotive manufacturer Lamborghini.",
-          "url":
-              "https://www.thairath.co.th/lifestyle/auto/news/1234567" // URL ตัวอย่าง
-        },
-        {
-          "model": "Huracan",
-          "description":
-              "The Lamborghini Huracán is a sports car built by Italian automotive manufacturer Lamborghini.",
-          "url": "https://www.sanook.com/auto/7890123" // URL ตัวอย่าง
-        },
-        {
-          "model": "Urus",
-          "description":
-              "The Lamborghini Urus is a high performance luxury SUV manufactured by Italian automotive manufacturer Lamborghini.",
-          "url": "https://www.khaosod.co.th/auto/news_3456789" // URL ตัวอย่าง
-        }
-      ]);
-    });
+class _NewsHomePageState extends State<NewsHomePage> {
+  List<dynamic> articles = [];
 
-    if (response.isNotEmpty) {
-      return json.decode(response);
-    } else {
-      throw Exception('Failed to load data');
+  @override
+  void initState() {
+    super.initState();
+    fetchNews();
+  }
+
+  Future<void> fetchNews() async {
+    final response = await http.get(Uri.parse(
+        'https://newsapi.org/v2/everything?q=automotive&apiKey=542ab0f5c0d54b33b2ebd28343b37ca6'));
+    if (response.statusCode == 200) {
+      setState(() {
+        articles = json.decode(response.body)['articles'];
+      });
     }
   }
 
-  void _navigateToDetailPage(BuildContext context, Map<String, dynamic> car) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CarDetailPage(car: car),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text('News',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        elevation: 0,
       ),
-      body: FutureBuilder<List<dynamic>>(
-        future: fetchData(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return ListView.builder(
-              itemCount: snapshot.data!.length,
+      body: articles.isEmpty
+          ? Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              padding: EdgeInsets.all(16),
+              itemCount: articles.length,
               itemBuilder: (context, index) {
                 return Card(
-                  margin: EdgeInsets.all(10),
+                  elevation: 4,
+                  margin: EdgeInsets.only(bottom: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  elevation: 5,
-                  child: InkWell(
-                    onTap: () =>
-                        _navigateToDetailPage(context, snapshot.data![index]),
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            snapshot.data![index]['model'],
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            snapshot.data![index]['description'],
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(12)),
+                        child: Image.network(
+                          articles[index]['urlToImage'] ??
+                              'https://via.placeholder.com/300x200',
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
                       ),
-                    ),
+                      Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              articles[index]['title'] ?? '',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              articles[index]['description'] ?? '',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.grey[600]),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Source: ${articles[index]['source']['name'] ?? ''}',
+                              style: TextStyle(
+                                  fontSize: 12, fontStyle: FontStyle.italic),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
-            );
-          } else if (snapshot.hasError) {
-            return Center(child: Text("${snapshot.error}"));
-          }
-          return Center(child: CircularProgressIndicator());
-        },
-      ),
-    );
-  }
-}
-
-class CarDetailPage extends StatelessWidget {
-  final Map<String, dynamic> car;
-
-  CarDetailPage({required this.car});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(car['model']),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              car['model'],
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.redAccent,
-              ),
             ),
-            SizedBox(height: 10),
-            Text(
-              car['description'],
-              style: TextStyle(fontSize: 18),
-            ),
-            SizedBox(height: 20),
-            Text(
-              'More Information:',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 10),
-          ],
-        ),
-      ),
     );
   }
 }
